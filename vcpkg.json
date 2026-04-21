@@ -1,0 +1,19 @@
+{
+  "name": "xedit-linker",
+  "version-string": "1.0.0",
+  "description": "xEdit IPC bridge for all Bethesda SE targets",
+  "dependencies": [
+    "commonlibsse-ng",
+    {
+      "name": "imgui",
+      "features": ["dx11-binding", "win32-binding"]
+    }
+  ],
+  "builtin-baseline": "14bb451131ccf6be50a63a8d9dfe7980e46b5958",
+  "overrides": [
+    {
+      "name": "commonlibsse-ng",
+      "version-semver": "4.14.0"
+    }
+  ]
+}
