@@ -11,7 +11,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
 # CommonLibSSE's link interface and CMake requires the target to already exist.
 find_package(directxtk CONFIG REQUIRED)
 find_package(CommonLibSSE CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
 
 # -- Shared library target -----------------------------------------------------
 add_library("${PROJECT_NAME}" SHARED)
@@ -39,20 +38,18 @@ target_sources("${PROJECT_NAME}" PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/cmake/version.rc")
 
 # -- Precompiled header --------------------------------------------------------
-target_precompile_headers("${PROJECT_NAME}" PRIVATE include/PCH.h)
+target_precompile_headers("${PROJECT_NAME}" PRIVATE PCH.h)
 
 # -- Include directories -------------------------------------------------------
 target_include_directories("${PROJECT_NAME}"
-    PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cmake"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
+    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cmake")
 
 # -- Link libraries ------------------------------------------------------------
 target_link_libraries("${PROJECT_NAME}"
     PRIVATE
         xedit_linker_common
-        CommonLibSSE::CommonLibSSE
-        imgui::imgui)
+        CommonLibSSE::CommonLibSSE)
 
 # -- Target properties ---------------------------------------------------------
 set_target_properties("${PROJECT_NAME}" PROPERTIES

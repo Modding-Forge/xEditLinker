@@ -1,14 +1,18 @@
+// Copyright (c) Modding Forge
+// SKSE plugin entry point; wires input events to xEdit IPC.
 #include "xedit_linker.h"
 
+#include <atomic>
 #include <chrono>
+#include <thread>
 
 namespace Config
 {
-    enum class TriggerMode { DoubleClick = 1, Hotkey = 2, SingleClick = 3 };
+    enum class TriggerMode { kDoubleClick = 1, kHotkey = 2, kSingleClick = 3 };
 
     std::wstring  xEditPath;
-    TriggerMode   triggerMode = TriggerMode::Hotkey;
-    std::uint32_t hotkeyCode  = 0;   // DirectInput keyboard scancode; 0 = disabled
+    TriggerMode   triggerMode = TriggerMode::kHotkey;
+    std::uint32_t hotkeyCode  = 0;  // DirectInput scancode; 0 = disabled
 
     void Load(const std::wstring& iniPath)
     {
@@ -22,11 +26,10 @@ namespace Config
         wchar_t modeBuf[32]{};
         ::GetPrivateProfileStringW(L"xEditLinker", L"TriggerMode", L"Hotkey",
             modeBuf, 32, ini);
-        if      (_wcsicmp(modeBuf, L"SingleClick")  == 0) triggerMode = TriggerMode::SingleClick;
-        else if (_wcsicmp(modeBuf, L"DoubleClick")  == 0) triggerMode = TriggerMode::DoubleClick;
-        else                                               triggerMode = TriggerMode::Hotkey;
+        if      (_wcsicmp(modeBuf, L"SingleClick")  == 0) triggerMode = TriggerMode::kSingleClick;
+        else if (_wcsicmp(modeBuf, L"DoubleClick")  == 0) triggerMode = TriggerMode::kDoubleClick;
+        else                                               triggerMode = TriggerMode::kHotkey;
 
-        // HotkeyCode (decimal DX scancode; only used with TriggerMode=Hotkey)
         hotkeyCode = static_cast<std::uint32_t>(
             ::GetPrivateProfileIntW(L"xEditLinker", L"HotkeyCode", 60, ini));
     }
@@ -36,12 +39,24 @@ namespace
 {
     std::filesystem::path GetDataPath()
     {
-        wchar_t buf[MAX_PATH];
-        ::GetModuleFileNameW(nullptr, buf, MAX_PATH);
-        return std::filesystem::path(buf).parent_path() / L"Data";
+        return std::filesystem::current_path() / L"Data";
     }
 
-    bool g_xEditRunning = false;
+    std::atomic<bool> g_xEditRunning = false;
+    HANDLE             g_xEditProcess  = nullptr;
+
+    bool IsXEditAlive()
+    {
+        if (!g_xEditProcess)
+            return false;
+        if (::WaitForSingleObject(g_xEditProcess, 0) == WAIT_TIMEOUT)
+            return true;
+        // Process has exited
+        ::CloseHandle(g_xEditProcess);
+        g_xEditProcess = nullptr;
+        g_xEditRunning.store(false, std::memory_order_relaxed);
+        return false;
+    }
 
     void LaunchXEdit()
     {
@@ -70,8 +85,8 @@ namespace
                 nullptr, nullptr, &si, &pi))
         {
             ::CloseHandle(pi.hThread);
-            ::CloseHandle(pi.hProcess);
-            g_xEditRunning = true;
+            g_xEditProcess = pi.hProcess;  // keep open to detect termination
+            g_xEditRunning.store(true, std::memory_order_release);
             RE::ConsoleLog::GetSingleton()->Print("[xEditLinker] xEdit launched.");
         }
         else
@@ -97,7 +112,6 @@ namespace
         g_pendingRef     = { refID, base ? base->GetFormID() : 0u };
     }
 
-    // Stores the ref to send once the user confirms xEdit launch.
     PendingRef g_pendingLaunchRef;
 
     // RE::CreateMessage's second parameter is typed as IMessageBoxCallback* in CommonLib,
@@ -107,16 +121,18 @@ namespace
     {
         // Button 0 = first button ("Yes"), anything else = cancel/No
         if (a_msg == RE::IMessageBoxCallback::Message::kUnk0) {
-            LaunchXEdit();
-            if (g_xEditRunning && g_pendingLaunchRef.refID != 0)
-                OpenInXEdit(g_pendingLaunchRef.refID, g_pendingLaunchRef.baseID);
+            std::thread([ref = g_pendingLaunchRef]() {
+                LaunchXEdit();
+                if (g_xEditRunning.load(std::memory_order_acquire) && ref.refID != 0)
+                    OpenInXEdit(ref.refID, ref.baseID);
+            }).detach();
         }
         g_pendingLaunchRef = {};
     }
 
     void TrySendToXEdit()
     {
-        if (!g_xEditRunning) {
+        if (!g_xEditRunning || !IsXEditAlive()) {
 
             if (Config::xEditPath.empty()) {
                 RE::ConsoleLog::GetSingleton()->Print(
@@ -125,12 +141,7 @@ namespace
                 return;
             }
             if (!std::filesystem::exists(Config::xEditPath)) {
-                const int len = ::WideCharToMultiByte(
-                    CP_UTF8, 0, Config::xEditPath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-                std::string narrow(len > 0 ? len - 1 : 0, '\0');
-                if (len > 0)
-                    ::WideCharToMultiByte(CP_UTF8, 0, Config::xEditPath.c_str(), -1,
-                        narrow.data(), len, nullptr, nullptr);
+                const auto narrow = SKSE::stl::utf16_to_utf8(Config::xEditPath).value_or("<encoding error>"s);
                 RE::ConsoleLog::GetSingleton()->Print(
                     "[xEditLinker] xEdit not found at: %s", narrow.c_str());
                 return;
@@ -139,23 +150,30 @@ namespace
             // Save the pending ref so the callback can send it after launch
             g_pendingLaunchRef = g_pendingRef;
 
-            const int len = ::WideCharToMultiByte(
-                CP_UTF8, 0, Config::xEditPath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-            std::string pathUtf8(len > 0 ? len - 1 : 0, '\0');
-            if (len > 0)
-                ::WideCharToMultiByte(CP_UTF8, 0, Config::xEditPath.c_str(), -1,
-                    pathUtf8.data(), len, nullptr, nullptr);
+            const auto pathUtf8 = SKSE::stl::utf16_to_utf8(Config::xEditPath).value_or("<encoding error>"s);
 
             // CreateMessage uses a static body string pointer - store in static to keep alive
             static std::string s_msgBody;
-            s_msgBody = "Start xEdit?\n" + pathUtf8 +
-                        "\n\nSkyrim will freeze for a couple of seconds.";
+            s_msgBody = "Start xEdit?\n" + pathUtf8;
 
-            RE::CreateMessage(
+            // Hide the Console first so the MessageBox appears above it.
+            if (auto* msgQ = RE::UIMessageQueue::GetSingleton())
+                msgQ->AddMessage(RE::Console::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+
+            // The native Skyrim function is variadic and reads buttons until nullptr.
+            // RE::CreateMessage wraps it with a fixed 7-param signature, omitting the null
+            // terminator - causing Skyrim to read a garbage third button off the stack.
+            // Call via RELOCATION_ID directly with an explicit null terminator.
+            using CreateMessageFn = void(*)(
+                const char*, RE::IMessageBoxCallback*,
+                std::uint32_t, std::uint32_t, std::uint32_t,
+                const char*, const char*, const char*);
+            static REL::Relocation<CreateMessageFn> createMessage{ RELOCATION_ID(51420, 52269) };
+            createMessage(
                 s_msgBody.c_str(),
                 reinterpret_cast<RE::IMessageBoxCallback*>(XelLaunchCallbackFn),
-                0, 0, 0,
-                "Yes", "No");
+                0, 4, 10,
+                "Yes", "No", nullptr);
             return;
         }
         if (g_pendingRef.refID != 0)
@@ -188,7 +206,7 @@ namespace
 
                 const auto* btn = static_cast<const RE::ButtonEvent*>(ev);
 
-                if (Config::triggerMode == Config::TriggerMode::Hotkey &&
+                if (Config::triggerMode == Config::TriggerMode::kHotkey &&
                     Config::hotkeyCode  != 0 &&
                     btn->GetDevice()    == RE::INPUT_DEVICE::kKeyboard &&
                     btn->GetIDCode()    == Config::hotkeyCode &&
@@ -206,16 +224,16 @@ namespace
 
                 switch (Config::triggerMode) {
 
-                case Config::TriggerMode::SingleClick:
+                case Config::TriggerMode::kSingleClick:
                     SKSE::GetTaskInterface()->AddTask(ReadCurrentConsoleRef);
                     SKSE::GetTaskInterface()->AddTask(TrySendToXEdit);
                     break;
 
-                case Config::TriggerMode::DoubleClick:
+                case Config::TriggerMode::kDoubleClick:
                 default: {
                     const auto now = std::chrono::steady_clock::now();
-                    const bool dbl = (now - m_lastClick) < std::chrono::milliseconds(300);
-                    m_lastClick    = now;
+                    const bool dbl = (now - _lastClick) < std::chrono::milliseconds(300);
+                    _lastClick     = now;
                     SKSE::GetTaskInterface()->AddTask(ReadCurrentConsoleRef);
                     if (dbl)
                         SKSE::GetTaskInterface()->AddTask(TrySendToXEdit);
@@ -228,7 +246,7 @@ namespace
         }
 
     private:
-        std::chrono::steady_clock::time_point m_lastClick{};
+        std::chrono::steady_clock::time_point _lastClick{};
     };
 
     class MenuEventSink final : public RE::BSTEventSink<RE::MenuOpenCloseEvent>

@@ -1,0 +1,72 @@
+[center][size=5][b]xEdit Linker[/b][/size]
+[i]Jump from the in-game console straight to SSEEdit - no copy-pasting FormIDs.[/i][/center]
+
+[line]
+
+[size=4][b]What it does[/b][/size]
+
+Select any reference in the console, press [b]F2[/b], and SSEEdit jumps to the matching record. That's it.
+
+The plugin shows an in-game confirmation dialog and [b]launches SSEEdit for you[/b]. Once it's up, the selected reference is sent immediately.
+
+Under the hood the plugin writes the selected FormID to [font=Courier New]Data\xEdit\xEditLink.ini[/font]. SSEEdit's built-in GameLink thread watches that file and does the navigation - no extra tools required.
+
+[center][youtube]YWBRdOK-GfE[/youtube][/center]
+
+[line]
+
+[size=4][b]Requirements[/b][/size]
+
+[list]
+[*][url=https://skse.silverlock.org/]SKSE64[/url][/*]
+[*][url=https://www.nexusmods.com/skyrimspecialedition/mods/32444]Address Library for SKSE[/url][/*]
+[*][url=https://www.nexusmods.com/skyrimspecialedition/mods/164]SSEEdit[/url] 4.x - must be started with the [b]-autogamelink[/b] flag (the GameLink menu item in SSEEdit enables this automatically)[/*]
+[/list]
+
+[line]
+
+[size=4][b]Installation[/b][/size]
+
+[color=#ff6600][b]Before you start:[/b] You need [url=https://www.nexusmods.com/skyrimspecialedition/mods/164]SSEEdit[/url] installed separately. The plugin needs to know where your [font=Courier New]SSEEdit.exe[/font] is - without this it won't work.[/color]
+
+[list=1]
+[*]Install this mod with a mod manager (MO2 recommended).[/*]
+[*]Open [font=Courier New]Data\SKSE\Plugins\SSEEditLinker.ini[/font] and set [font=Courier New]xEditPath[/font] to the [b]full path[/b] of your [font=Courier New]SSEEdit.exe[/font], for example:[/*]
+[/list]
+
+[code]xEditPath=C:\Tools\SSEEdit\SSEEdit.exe[/code]
+
+Without [font=Courier New]xEditPath[/font] set, the plugin will do nothing.
+
+[line]
+
+[size=4][b]Configuration[/b][/size]
+
+[font=Courier New]Data\SKSE\Plugins\SSEEditLinker.ini[/font]
+
+[code]
+[xEditLinker]
+; Full path to SSEEdit.exe (required)
+xEditPath=C:\Tools\SSEEdit\SSEEdit.exe
+
+; How to trigger sending the selected ref to xEdit.
+; Values: Hotkey (default), DoubleClick, SingleClick
+TriggerMode=Hotkey
+
+; DirectInput scancode for TriggerMode=Hotkey. Default: 60 (F2)
+HotkeyCode=60[/code]
+
+[b]Trigger modes[/b]
+[list]
+[*][b]Hotkey[/b] - Open the console, select a reference, press the configured key.[/*]
+[*][b]DoubleClick[/b] - Open the console, double-click a reference.[/*]
+[*][b]SingleClick[/b] - Open the console, single-click a reference.[/*]
+[/list]
+
+A full list of DirectInput scancodes can be found [url=https://geckwiki.com/index.php?title=DirectX_Scancodes]here[/url].
+
+[line]
+
+[size=4][b]Source code[/b][/size]
+
+[url=https://github.com/Modding-Forge/xEditLinker]github.com/Modding-Forge/xEditLinker[/url] - GPL-3.0

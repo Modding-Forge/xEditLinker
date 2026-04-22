@@ -1,3 +1,5 @@
+// Copyright (c) Modding Forge
+// IPC layer: writes FormIDs to xEditLink.ini for xEdit's GameLink thread.
 #include "xedit_linker.h"
 
 #define WIN32_LEAN_AND_MEAN

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
-project(xedit_linker_skyrim_vr VERSION 1.0.0 LANGUAGES CXX)
+project(xedit_linker_ssevr VERSION 1.0.0 LANGUAGES CXX)
 
 # Repository : https://github.com/CharmedBaryon/CommonLibSSE-NG
-# NOTE: skyrim_vr and skyrim_se share the FetchContent name "CommonLibSSE".
+# NOTE: ssevr and sse share the FetchContent name "CommonLibSSE".
 #       Build each in its own configure directory (see root CMakeLists.txt).
 include(FetchContent)
 

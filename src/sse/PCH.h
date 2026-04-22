@@ -1,3 +1,5 @@
+// Copyright (c) Modding Forge
+// Precompiled header for the Skyrim SE plugin.
 #pragma once
 
 #include "RE/Skyrim.h"

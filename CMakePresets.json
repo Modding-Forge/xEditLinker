@@ -64,6 +64,17 @@
         "ENABLE_SKYRIM_VR": "ON"
       },
       "inherits": ["base", "win64", "msvc"]
+    },
+    {
+      "name": "fo4",
+      "displayName": "Fallout 4 (x64)",
+      "binaryDir": "${sourceDir}/build-fo4",
+      "cacheVariables": {
+        "BUILD_FO4": "ON",
+        "BUILD_SKYRIM_SE": "OFF",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+      },
+      "inherits": ["base", "win64", "msvc"]
     }
   ],
   "buildPresets": [
@@ -84,6 +95,18 @@
       "displayName": "Skyrim VR – Release",
       "configurePreset": "skyrim-vr",
       "configuration": "Release"
+    },
+    {
+      "name": "fo4-release",
+      "displayName": "Fallout 4 – Release",
+      "configurePreset": "fo4",
+      "configuration": "Release"
+    },
+    {
+      "name": "fo4-debug",
+      "displayName": "Fallout 4 – Debug",
+      "configurePreset": "fo4",
+      "configuration": "Debug"
     }
   ]
 }

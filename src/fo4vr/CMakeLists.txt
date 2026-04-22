@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
-project(xedit_linker_fo4_vr VERSION 1.0.0 LANGUAGES CXX)
+project(xedit_linker_fo4vr VERSION 1.0.0 LANGUAGES CXX)
 
 # Repository : https://github.com/Ryan-rsm-McKenzie/CommonLibF4
-# NOTE: fo4_vr and fo4 share the FetchContent name "CommonLibF4".
+# NOTE: fo4vr and fo4 share the FetchContent name "CommonLibF4".
 #       Build each in its own configure directory (see root CMakeLists.txt).
 # NOTE: CommonLibF4 does not expose a discrete VR-vs-non-VR CMake flag the
 #       way CommonLibSSE-NG does.  VR-specific hooks will be implemented in
